@@ -36,7 +36,7 @@ small, .muted { font-size: .8rem; }
 .failure div { display: flex; justify-content: space-between; gap: 12px; }
 .failure p { margin-top: 6px; color: #d0a9a5; }
 .empty { padding: 24px 0 4px; font-size: .85rem; }
-.messages { margin-bottom: 16px; }
+.messages, .recovery { margin-bottom: 16px; }
 .message-list { list-style: none; padding: 0; margin: 16px 0 0; }
 .message-list li { border-top: 1px solid #2c3948; padding: 14px 0; }
 .message-meta { display: flex; justify-content: space-between; gap: 12px; font-size: .84rem; }

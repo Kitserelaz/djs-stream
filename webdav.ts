@@ -151,9 +151,13 @@ export const startWebDav = async (onFailure: typeof reportFailure) => {
     const staging = mkdtempSync(join(tmpdir(), "djs-stream-recovery-"));
     let restored = false;
     try {
-        restored = await restoreArchive(baseUrl, staging, webDavRequest);
+        restored = await restoreArchive(baseUrl, staging, webDavRequest, (phase, path, files, bytes) => {
+            Object.assign(dashboardState.recovery, { phase, path, files, bytes });
+        });
         throwIfStopping();
         if (restored) {
+            dashboardState.recovery.phase = "Installing";
+            dashboardState.recovery.path = "";
             logProgress("Recovery", "Installing validated archive as the local cache.");
             // Install the remote cache only after every download has succeeded.
             rmSync("output", { recursive: true, force: true });
@@ -166,10 +170,13 @@ export const startWebDav = async (onFailure: typeof reportFailure) => {
     }
 
     enabled = true;
+    dashboardState.recovery.phase = "Syncing local files";
+    dashboardState.recovery.path = "";
     dashboardState.webdav = "Connected";
     if (!restored) {
         if (existsSync("logs.json")) queueUpload("logs.json");
         queueDirectory("output");
     }
     await flushUploads();
+    dashboardState.recovery.phase = "Complete";
 };

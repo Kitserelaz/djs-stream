@@ -61,6 +61,7 @@ await trackTask(async () => {
     } catch (error) {
         dashboardState.webdav = "Recovery failed";
         dashboardState.startup = "Recovery failed";
+        dashboardState.recovery.phase = "Failed";
         throw error;
     }
     dashboardState.startup = "Connecting to Discord";

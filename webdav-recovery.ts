@@ -11,11 +11,13 @@ const parser = new XMLParser({
     isArray: name => name === "response" || name === "propstat",
 });
 
-export const restoreArchive = async (baseUrl: URL, staging: string, request: DavRequest) => {
+export const restoreArchive = async (baseUrl: URL, staging: string, request: DavRequest, onProgress?: (phase: string, path: string, files: number, bytes: number) => void) => {
     const root = decodeURIComponent(new URL("djs-stream/", baseUrl).pathname);
     let restored = 0;
+    let bytes = 0;
 
     const restoreDirectory = async (directory: string) => {
+        onProgress?.("Listing", `djs-stream/${directory}`, restored, bytes);
         logProgress("Recovery", `Listing djs-stream/${directory}`);
         const response = await request(`djs-stream/${directory}${directory ? "/" : ""}`, "PROPFIND",
             '<?xml version="1.0"?><d:propfind xmlns:d="DAV:"><d:prop><d:resourcetype/></d:prop></d:propfind>',
@@ -58,6 +60,7 @@ export const restoreArchive = async (baseUrl: URL, staging: string, request: Dav
                 continue;
             }
             if (relative !== "logs.json" && !(relative.startsWith("output/") && relative.endsWith(".json"))) continue;
+            onProgress?.("Downloading", relative, restored, bytes);
             const file = await request(`djs-stream/${relative}`, "GET");
             if (!file.ok) {
                 await file.body?.cancel();
@@ -69,6 +72,8 @@ export const restoreArchive = async (baseUrl: URL, staging: string, request: Dav
             mkdirSync(dirname(destination), { recursive: true });
             writeFileSync(destination, content);
             restored++;
+            bytes += Buffer.byteLength(content);
+            onProgress?.("Downloaded", relative, restored, bytes);
             logProgress("Recovery", `Restored ${relative} (${Buffer.byteLength(content)} bytes; ${restored} files downloaded).`);
         }
     };
