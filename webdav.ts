@@ -151,8 +151,8 @@ export const startWebDav = async (onFailure: typeof reportFailure) => {
     const staging = mkdtempSync(join(tmpdir(), "djs-stream-recovery-"));
     let restored = false;
     try {
-        restored = await restoreArchive(baseUrl, staging, webDavRequest, (phase, path, files, bytes) => {
-            Object.assign(dashboardState.recovery, { phase, path, files, bytes });
+        restored = await restoreArchive(baseUrl, staging, webDavRequest, (phase, path, files, bytes, total) => {
+            Object.assign(dashboardState.recovery, { phase, path, files, bytes, total });
         });
         throwIfStopping();
         if (restored) {

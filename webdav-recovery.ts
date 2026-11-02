@@ -11,13 +11,14 @@ const parser = new XMLParser({
     isArray: name => name === "response" || name === "propstat",
 });
 
-export const restoreArchive = async (baseUrl: URL, staging: string, request: DavRequest, onProgress?: (phase: string, path: string, files: number, bytes: number) => void) => {
+export const restoreArchive = async (baseUrl: URL, staging: string, request: DavRequest, onProgress?: (phase: string, path: string, files: number, bytes: number, total: number | null) => void) => {
     const root = decodeURIComponent(new URL("djs-stream/", baseUrl).pathname);
     let restored = 0;
     let bytes = 0;
+    const files: string[] = [];
 
     const restoreDirectory = async (directory: string) => {
-        onProgress?.("Listing", `djs-stream/${directory}`, restored, bytes);
+        onProgress?.("Discovering", `djs-stream/${directory}`, restored, bytes, null);
         logProgress("Recovery", `Listing djs-stream/${directory}`);
         const response = await request(`djs-stream/${directory}${directory ? "/" : ""}`, "PROPFIND",
             '<?xml version="1.0"?><d:propfind xmlns:d="DAV:"><d:prop><d:resourcetype/></d:prop></d:propfind>',
@@ -60,7 +61,15 @@ export const restoreArchive = async (baseUrl: URL, staging: string, request: Dav
                 continue;
             }
             if (relative !== "logs.json" && !(relative.startsWith("output/") && relative.endsWith(".json"))) continue;
-            onProgress?.("Downloading", relative, restored, bytes);
+            files.push(relative);
+        }
+    };
+
+    await restoreDirectory("");
+    onProgress?.("Downloading", "", restored, bytes, files.length);
+    for (let index = 0; index < files.length; index += 8) {
+        const results = await Promise.allSettled(files.slice(index, index + 8).map(async relative => {
+            onProgress?.("Downloading", relative, restored, bytes, files.length);
             const file = await request(`djs-stream/${relative}`, "GET");
             if (!file.ok) {
                 await file.body?.cancel();
@@ -73,12 +82,12 @@ export const restoreArchive = async (baseUrl: URL, staging: string, request: Dav
             writeFileSync(destination, content);
             restored++;
             bytes += Buffer.byteLength(content);
-            onProgress?.("Downloaded", relative, restored, bytes);
+            onProgress?.("Downloading", relative, restored, bytes, files.length);
             logProgress("Recovery", `Restored ${relative} (${Buffer.byteLength(content)} bytes; ${restored} files downloaded).`);
-        }
-    };
-
-    await restoreDirectory("");
+        }));
+        const failure = results.find(result => result.status === "rejected");
+        if (failure?.status === "rejected") throw failure.reason;
+    }
     logProgress("Recovery", `Download finished: ${restored} files validated.`);
     return restored > 0;
 };
