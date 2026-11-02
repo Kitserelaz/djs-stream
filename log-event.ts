@@ -100,7 +100,7 @@ export const createEventLogger = (client: Client) => {
         }
     };
     const logEvent = async (event: PendingMessageEvent["event"], ...messages: (Message | PartialMessage)[]) => {
-        if (shutdownSignal.aborted) return;
+        if (shutdownSignal.aborted) return false;
         try {
             const id = `${Date.now()}-${String(sequence++).padStart(10, "0")}`;
             const filename = `${id}.json`;
@@ -109,9 +109,11 @@ export const createEventLogger = (client: Client) => {
             waiting.push(filename);
             logProgress("Events", `Captured ${event} for message ${messages.at(-1)!.id}; checkpoint ${filename}.`);
             await drain();
+            return true;
         }
         catch (error) {
             recordFailure(`Saving ${event}`, error);
+            return false;
         }
     };
     const logMemberEvent = async (event: PendingMemberEvent["event"], member: GuildMember, oldMember?: GuildMember | PartialGuildMember) => {

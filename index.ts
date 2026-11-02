@@ -1,6 +1,7 @@
 import { Client } from "discord.js-selfbot-v13";
 import express from "express";
 import { dashboard } from "./dashboard";
+import { catchUp } from "./catch-up";
 import { createEventLogger } from "./log-event";
 import { exportMetadata } from "./metadata";
 import { recordFailure } from "./storage";
@@ -55,15 +56,15 @@ await trackTask(async () => {
     const { logEvent, logMemberEvent, resume } = createEventLogger(client);
 
     client.on("messageCreate", async (message) => {
-        await trackTask(async () => logEvent("messageCreate", message));
+        await trackTask(async () => { await logEvent("messageCreate", message); });
     });
 
     client.on("messageUpdate", async (oldMessage, newMessage) => {
-        await trackTask(async () => logEvent("messageUpdate", oldMessage, newMessage));
+        await trackTask(async () => { await logEvent("messageUpdate", oldMessage, newMessage); });
     });
 
     client.on("messageDelete", async (message) => {
-        await trackTask(async () => logEvent("messageDelete", message));
+        await trackTask(async () => { await logEvent("messageDelete", message); });
     });
 
     client.on("guildMemberAdd", async (member) => {
@@ -75,9 +76,13 @@ await trackTask(async () => {
     });
 
     client.once("ready", async () => {
+        const boundary = ((BigInt(Date.now()) - 1420070400000n) << 22n).toString();
         logProgress("Discord", `Connected as user ${client.user!.id}; ${client.guilds.cache.size} servers available.`);
         await Promise.all([
-            trackTask(resume),
+            trackTask(async () => {
+                await resume();
+                await catchUp(client, boundary, logEvent);
+            }),
             trackTask(async () => exportMetadata(client)),
         ]);
         if (!shutdownSignal.aborted) logProgress("Startup", "Initial collection finished; listening for message and member events.");

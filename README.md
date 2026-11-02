@@ -21,7 +21,10 @@ records are written under `output/<guild-id>/` (or `output/dms/`): messages by
 channel, authors, mentioned users, all users, external invites, and server metadata.
 Server metadata includes channels, threads, members, roles, emojis, stickers, and
 templates, collected on startup. Message history and media files are not fetched.
-Profiles are fetched only when processing message events; startup metadata uses
+At startup, accessible cached text channels are checked for messages missed since
+the previous startup. Existing message archives set the initial boundary for their
+channels; other channels begin tracking at startup. Deleted messages and past edits
+cannot be recovered. Profiles are fetched only when processing message events; startup metadata uses
 the user information already available without requesting profiles.
 
 Unfinished events are saved under `output/checkpoints/events/` and resumed on
