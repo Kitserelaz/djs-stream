@@ -1,10 +1,17 @@
-import type { GuildMember, PartialGuildMember } from "discord.js-selfbot-v13";
+import { Util, type GuildMember, type PartialGuildMember } from "discord.js-selfbot-v13";
 import { captureUser } from "./format-user";
 import { safeJson } from "./storage";
 
 export const captureMember = (member: GuildMember | PartialGuildMember) => {
     const serializedUser = captureUser(member.user);
-    const json = safeJson(`Serializing member ${member.id}`, member);
+    const json = safeJson(`Serializing member ${member.id}`, { toJSON: () => ({
+        ...Util.flatten(member, { guild: "guildId", user: "userId", displayName: true, roles: true }) as object,
+        avatarURL: member.avatarURL(),
+        bannerURL: member.bannerURL(),
+        displayAvatarURL: member.displayAvatarURL(),
+        displayBannerURL: member.banner ? member.bannerURL() : member.user.banner ? member.user.bannerURL() : null,
+        avatarDecorationURL: member.avatarDecorationURL(),
+    }) });
     const result = {
         "user": serializedUser,
         "avatar": member.avatar,

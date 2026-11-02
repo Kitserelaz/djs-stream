@@ -5,10 +5,14 @@ import { setTimeout as delay } from "node:timers/promises";
 import { restoreArchive } from "./webdav-recovery";
 import { shutdownSignal, throwIfStopping } from "./shutdown";
 import { logProgress } from "./logging";
+import { dashboardState } from "./dashboard-state";
 
 const pending = new Set<string>();
+const queuedAt = new Map<string, number>();
+let uploadingSince: number | undefined;
 let uploadingPath: string | undefined;
 export const pendingUploadCount = () => pending.size + (uploadingPath ? 1 : 0);
+export const oldestUploadTime = () => Math.min(...queuedAt.values(), uploadingSince ?? Infinity);
 const collections = new Set<string>();
 let uploadTask: Promise<void> | undefined;
 let enabled = false;
@@ -62,6 +66,8 @@ const uploadPending = async () => {
             const path = pending.values().next().value!;
             pending.delete(path);
             uploadingPath = path;
+            uploadingSince = queuedAt.get(path);
+            queuedAt.delete(path);
             try {
                 // A missing cache file must never silently count as a saved write.
                 await ensureCollections(path);
@@ -69,10 +75,15 @@ const uploadPending = async () => {
                 logProgress("WebDAV", `Uploading ${path} (${body.length} bytes; ${pending.size} other files queued).`);
                 await send(`djs-stream/${path}`, "PUT", body);
                 uploadingPath = undefined;
+                uploadingSince = undefined;
+                dashboardState.webdav = "Connected";
                 logProgress("WebDAV", `Uploaded ${path}.`);
             } catch (error) {
                 uploadingPath = undefined;
+                queuedAt.set(path, Math.min(queuedAt.get(path) ?? Infinity, uploadingSince ?? Date.now()));
+                uploadingSince = undefined;
                 pending.add(path);
+                dashboardState.webdav = "Retrying upload";
                 logProgress("WebDAV", `Upload failed for ${path}; retrying after 30 seconds.`);
                 try {
                     reportFailure(`Uploading ${path} to WebDAV`, error);
@@ -93,6 +104,7 @@ const uploadPending = async () => {
 export const queueUpload = (path: string) => {
     if (!isArchiveFile(path)) return;
     if (!pending.has(path)) logProgress("WebDAV", `Queued ${path}.`);
+    if (!pending.has(path)) queuedAt.set(path, Date.now());
     pending.add(path);
     void uploadPending();
 };
@@ -154,6 +166,7 @@ export const startWebDav = async (onFailure: typeof reportFailure) => {
     }
 
     enabled = true;
+    dashboardState.webdav = "Connected";
     if (!restored) {
         if (existsSync("logs.json")) queueUpload("logs.json");
         queueDirectory("output");

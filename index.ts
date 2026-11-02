@@ -1,7 +1,10 @@
 import { Client } from "discord.js-selfbot-v13";
 import express from "express";
+import { fileURLToPath } from "node:url";
 import { dashboard } from "./dashboard";
+import { dashboardAuth } from "./dashboard-auth";
 import { catchUp } from "./catch-up";
+import { dashboardState } from "./dashboard-state";
 import { createEventLogger } from "./log-event";
 import { exportMetadata } from "./metadata";
 import { recordFailure } from "./storage";
@@ -11,6 +14,8 @@ import { logProgress } from "./logging";
 
 const client = new Client();
 const app = express();
+app.get("/dashboard.css", (_request, response) => response.sendFile(fileURLToPath(new URL("./dashboard.css", import.meta.url))));
+app.use(dashboardAuth);
 app.get("/", async (_request, response) => response.send(await dashboard(client)));
 app.listen(Number(process.env.PORT) || 3000);
 cancelDiscordRequestsOnShutdown(client);
@@ -33,6 +38,7 @@ const shutdown = async () => {
     if (shutdownSignal.aborted) return;
     logProgress("Shutdown", "Stopping collection and waiting for WebDAV uploads.");
     beginShutdown();
+    dashboardState.startup = "Shutting down";
     try {
         client.destroy();
         await Promise.allSettled([...activeTasks]);
@@ -50,7 +56,14 @@ process.on("SIGTERM", shutdown);
 
 await trackTask(async () => {
     logProgress("Startup", "Recovering archive from WebDAV before connecting to Discord.");
-    await startWebDav(recordFailure);
+    try {
+        await startWebDav(recordFailure);
+    } catch (error) {
+        dashboardState.webdav = "Recovery failed";
+        dashboardState.startup = "Recovery failed";
+        throw error;
+    }
+    dashboardState.startup = "Connecting to Discord";
     logProgress("Startup", "WebDAV recovery finished.");
     throwIfStopping();
     const { logEvent, logMemberEvent, resume } = createEventLogger(client);
@@ -76,18 +89,33 @@ await trackTask(async () => {
     });
 
     client.once("ready", async () => {
+        dashboardState.startup = "Collecting startup data";
         const boundary = ((BigInt(Date.now()) - 1420070400000n) << 22n).toString();
         logProgress("Discord", `Connected as user ${client.user!.id}; ${client.guilds.cache.size} servers available.`);
         await Promise.all([
             trackTask(async () => {
                 await resume();
-                await catchUp(client, boundary, logEvent);
+                try {
+                    await catchUp(client, boundary, logEvent);
+                } catch (error) {
+                    dashboardState.catchUp.status = shutdownSignal.aborted ? "Interrupted" : "Failed";
+                    dashboardState.catchUp.channel = "";
+                    throw error;
+                }
             }),
             trackTask(async () => exportMetadata(client)),
         ]);
-        if (!shutdownSignal.aborted) logProgress("Startup", "Initial collection finished; listening for message and member events.");
+        if (!shutdownSignal.aborted) {
+            dashboardState.startup = dashboardState.catchUp.status === "Complete" ? "Ready" : "Finished with errors";
+            logProgress("Startup", "Initial collection finished; listening for message and member events.");
+        }
     });
 
     logProgress("Discord", "Logging in and waiting for the gateway to become ready.");
-    await client.login(process.env.token);
+    try {
+        await client.login(process.env.token);
+    } catch (error) {
+        dashboardState.startup = "Discord login failed";
+        throw error;
+    }
 });

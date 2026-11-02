@@ -9,6 +9,7 @@ import { shutdownSignal, throwIfStopping } from "./shutdown";
 import { logProgress } from "./logging";
 import { captureMember, type CapturedMember } from "./format-member";
 import { saveLiveMember } from "./member-storage";
+import { recordActivity } from "./dashboard-state";
 type PendingMessageEvent = {
     id: string;
     event: "messageCreate" | "messageUpdate" | "messageDelete";
@@ -29,7 +30,6 @@ type SavedEvent = PendingMemberEvent | {
     oldMessage?: CapturedMessage["value"];
     newMessage?: CapturedMessage["value"];
 };
-export let recentActivity: { event: string; time: string } | undefined;
 export const createEventLogger = (client: Client) => {
     const pendingDirectory = "output/checkpoints/events";
     mkdirSync(pendingDirectory, { recursive: true });
@@ -60,10 +60,13 @@ export const createEventLogger = (client: Client) => {
                             : { id: pending.id, event: pending.event, message: messages[0] };
                         const message = messages.at(-1)!;
                         const path = `${archiveDirectory(message.guildId)}/messages/${message.channelId}.json`;
-                        const saved = readJson<CapturedMessage["value"][]>(path, []);
+                        const saved = readJson<(CapturedMessage["value"] & { deleted?: boolean })[]>(path, []);
                         const remaining = saved.filter(current => current.id !== message.id);
-                        if (pending.event !== "messageDelete")
+                        if (pending.event === "messageDelete") {
+                            remaining.push({ ...message, ...saved.find(current => current.id === message.id), deleted: true });
+                        } else {
                             remaining.push(message);
+                        }
                         writeJson(path, remaining);
                     } else {
                         event = pending;
@@ -105,7 +108,7 @@ export const createEventLogger = (client: Client) => {
             const id = `${Date.now()}-${String(sequence++).padStart(10, "0")}`;
             const filename = `${id}.json`;
             writeJson(`${pendingDirectory}/${filename}`, { id, event, messages: messages.map(captureMessage) });
-            recentActivity = { event, time: new Date().toISOString() };
+            recordActivity(event);
             waiting.push(filename);
             logProgress("Events", `Captured ${event} for message ${messages.at(-1)!.id}; checkpoint ${filename}.`);
             await drain();
@@ -126,7 +129,7 @@ export const createEventLogger = (client: Client) => {
                 member: captureMember(member),
                 oldMember: oldMember ? captureMember(oldMember) : undefined,
             });
-            recentActivity = { event, time: new Date().toISOString() };
+            recordActivity(event);
             waiting.push(filename);
             logProgress("Events", `Captured ${event} for member ${member.id} in server ${member.guild.id}; checkpoint ${filename}.`);
             await drain();

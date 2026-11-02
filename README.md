@@ -14,6 +14,14 @@ bun run index.ts
 
 Set `token` in the environment before running.
 
+For dashboard login, set `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET`, and
+`MANAGER_USER_ID` to the Discord application credentials and the allowed user's ID.
+In the application's Discord OAuth2 settings, register
+`https://djs-stream.onrender.com/auth/discord/callback` as a redirect URL. For
+local development, set `DISCORD_REDIRECT_URI` to
+`http://localhost:3000/auth/discord/callback` and register that URL too. Dashboard
+sessions expire after 24 hours or when the app restarts.
+
 Live message events, member joins, and member updates are saved in arrival order
 to `logs.json`. Member updates include the old and new member snapshots and update
 the server's `members.json`. Archival-style
