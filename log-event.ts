@@ -8,7 +8,7 @@ import { setTimeout as delay } from "node:timers/promises";
 import { shutdownSignal, throwIfStopping } from "./shutdown";
 import { logProgress } from "./logging";
 import { captureMember, type CapturedMember } from "./format-member";
-import { saveLiveMember } from "./member-storage";
+import { saveLiveMember, saveMemberHistory } from "./member-storage";
 import { recordActivity } from "./dashboard-state";
 type PendingMessageEvent = {
     id: string;
@@ -70,6 +70,7 @@ export const createEventLogger = (client: Client) => {
                         writeJson(path, remaining);
                     } else {
                         event = pending;
+                        saveMemberHistory(pending);
                         saveLiveMember(pending.guildId, pending.member);
                     }
                     const logs = readJson<SavedEvent[]>("logs.json", []);

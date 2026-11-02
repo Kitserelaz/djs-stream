@@ -1,7 +1,21 @@
 import type { CapturedMember } from "./format-member";
-import { archiveDirectory, saveRecord, writeJson } from "./storage";
+import { archiveDirectory, readJson, saveRecord, writeJson } from "./storage";
 
 const liveMembers = new Map<string, Record<string, CapturedMember>>();
+
+export const saveMemberHistory = (event: {
+    id: string;
+    event: "guildMemberAdd" | "guildMemberUpdate";
+    guildId: string;
+    member: CapturedMember;
+    oldMember?: CapturedMember;
+}) => {
+    const path = `${archiveDirectory(event.guildId)}/member-history/${event.member.id}.json`;
+    const history = readJson<(typeof event & { time: string })[]>(path, []);
+    if (history.some(record => record.id === event.id)) return;
+    history.push({ ...event, time: new Date(Number(event.id.split("-")[0])).toISOString() });
+    writeJson(path, history);
+};
 
 export const saveLiveMember = (guildId: string, member: CapturedMember) => {
     const members = liveMembers.get(guildId) ?? {};

@@ -24,7 +24,10 @@ sessions expire after 24 hours or when the app restarts.
 
 Live message events, member joins, and member updates are saved in arrival order
 to `logs.json`. Member updates include the old and new member snapshots and update
-the server's `members.json`. Archival-style
+the server's `members.json`. New member joins and updates are also recorded by
+member in `output/<guild-id>/member-history/<member-id>.json`, with the capture
+time and snapshots. This history starts when the feature is enabled; changes made
+while the app is offline cannot be reconstructed. Archival-style
 records are written under `output/<guild-id>/` (or `output/dms/`): messages by
 channel, authors, mentioned users, all users, external invites, and server metadata.
 Server metadata includes channels, threads, members, roles, emojis, stickers, and
