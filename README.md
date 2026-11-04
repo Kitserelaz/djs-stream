@@ -37,15 +37,17 @@ Registration is stored at `/var/lib/usque/config.json`; mount `/var/lib/usque` t
 persistent storage to reuse it across container replacements. Treat this file as
 a secret.
 
-The Dockerfile installs Usque automatically and prints the Discord account's
-username after the wrapper verifies WARP:
+The Dockerfile installs Usque automatically and starts the collector (`index.ts`)
+after the wrapper verifies WARP:
 
 ```bash
 docker build -t djs-stream-warp .
 docker run --rm --env-file .env djs-stream-warp
 ```
 
-Set `token` in `.env`. The default command exits after printing the username.
+Set `token` and the WebDAV and dashboard credentials in `.env`.
+To print the account's username instead, use
+`docker run --rm --env-file .env djs-stream-warp bun run account-username.ts`.
 To run the ipify test instead, use
 `docker run --rm djs-stream-warp bun run test-warp.ts`; it prints the public IP
 returned by `https://api.ipify.org?format=json` and needs no Discord credentials.
