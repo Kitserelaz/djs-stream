@@ -1,13 +1,15 @@
 FROM debian:bookworm-slim
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends bash ca-certificates curl gnupg \
-    && curl -fsS https://pkg.cloudflareclient.com/pubkey.gpg -o /tmp/cloudflare-warp.gpg \
-    && gpg --batch --dearmor -o /usr/share/keyrings/cloudflare-warp-archive-keyring.gpg /tmp/cloudflare-warp.gpg \
-    && echo "deb [signed-by=/usr/share/keyrings/cloudflare-warp-archive-keyring.gpg] https://pkg.cloudflareclient.com/ bookworm main" > /etc/apt/sources.list.d/cloudflare-client.list \
-    && apt-get update \
-    && apt-get install -y --no-install-recommends cloudflare-warp \
-    && rm -rf /var/lib/apt/lists/* /tmp/cloudflare-warp.gpg
+    && apt-get install -y --no-install-recommends bash ca-certificates curl unzip \
+    && mkdir /tmp/usque \
+    && cd /tmp/usque \
+    && curl -fSL "https://github.com/Diniboy1123/usque/releases/download/v4.2.1/usque_4.2.1_linux_$(dpkg --print-architecture).zip" -O \
+    && curl -fSL https://github.com/Diniboy1123/usque/releases/download/v4.2.1/checksums.txt -O \
+    && sha256sum --check --ignore-missing checksums.txt \
+    && unzip '*.zip' \
+    && install -m 755 usque /usr/local/bin/usque \
+    && rm -rf /var/lib/apt/lists/* /tmp/usque
 
 COPY --from=oven/bun:1.3.14 /usr/local/bin/bun /usr/local/bin/bun
 

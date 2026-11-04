@@ -14,21 +14,27 @@ bun run index.ts
 
 Set `token` in the environment before running.
 
-To start the WARP daemon and run the username script through its local HTTP proxy:
+To start the userspace WARP proxy and run the username script through it:
 
 ```bash
 bash with-warp.sh bun run account-username.ts
 ```
 
-The Linux container image must already include `cloudflare-warp`, `curl`, Bash,
-and Bun. The wrapper registers WARP when needed, connects in proxy mode, verifies
+The Docker image installs [Usque v4.2.1](https://github.com/Diniboy1123/usque/releases/tag/v4.2.1),
+an unofficial userspace WARP implementation, plus `curl`, Bash, and Bun. The wrapper
+registers when needed, starts Usque's L4 HTTP proxy on `127.0.0.1:40000`, verifies
 the tunnel, and exports HTTP proxy variables before starting the supplied command.
 It stops if WARP cannot connect and forwards shutdown to the command before
-stopping the daemon. Render compatibility still needs verification. Proxy
+stopping the proxy. This mode requires outbound UDP for QUIC but no `NET_ADMIN`
+or TUN device. Render compatibility still needs verification. Proxy
 variables cover Bun fetch requests; the collector's Discord gateway WebSocket
 requires separate proxy configuration.
 
-The Dockerfile installs WARP automatically and runs a Google connectivity test
+Registration is stored at `/var/lib/usque/config.json`; mount `/var/lib/usque` to
+persistent storage to reuse it across container replacements. Treat this file as
+a secret.
+
+The Dockerfile installs Usque automatically and runs a Google connectivity test
 after the wrapper verifies WARP:
 
 ```bash

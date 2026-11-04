@@ -6,55 +6,42 @@ if (( $# == 0 )); then
     exit 1
 fi
 
-for dependency in warp-svc warp-cli curl; do
+for dependency in usque curl; do
     if ! command -v "$dependency" >/dev/null; then
-        echo "Missing $dependency. Install cloudflare-warp and curl in the container image." >&2
+        echo "Missing $dependency. Use the project's Docker image, which installs Usque and curl." >&2
         exit 1
     fi
 done
 
+umask 077
+mkdir -p /var/lib/usque
+if [[ ! -f /var/lib/usque/config.json ]]; then
+    usque --config /var/lib/usque/config.json register --accept-tos
+fi
+
 app_pid=""
-warp-svc &
-warp_pid=$!
+usque --config /var/lib/usque/config.json l4-http-proxy -b 127.0.0.1 -p 40000 &
+proxy_pid=$!
 
 cleanup() {
     if [[ -n "$app_pid" ]]; then
         kill -TERM "$app_pid" 2>/dev/null || true
         wait "$app_pid" 2>/dev/null || true
     fi
-    kill -TERM "$warp_pid" 2>/dev/null || true
-    wait "$warp_pid" 2>/dev/null || true
+    kill -TERM "$proxy_pid" 2>/dev/null || true
+    wait "$proxy_pid" 2>/dev/null || true
 }
 trap cleanup EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
 
-echo "Waiting for the WARP daemon…"
-daemon_ready=false
-for (( attempt = 0; attempt < 30; attempt++ )); do
-    kill -0 "$warp_pid"
-    if warp-cli --accept-tos status >/dev/null 2>&1; then
-        daemon_ready=true
-        break
-    fi
-    sleep 1
-done
-if [[ "$daemon_ready" != true ]]; then
-    echo "WARP daemon did not become ready." >&2
-    exit 1
-fi
-
-if ! warp-cli --accept-tos registration show >/dev/null 2>&1; then
-    warp-cli --accept-tos registration new
-fi
-warp-cli --accept-tos mode proxy
-warp-cli --accept-tos proxy port 40000
-warp-cli --accept-tos connect
-
 echo "Verifying traffic through WARP…"
 connected=false
 for (( attempt = 0; attempt < 12; attempt++ )); do
-    kill -0 "$warp_pid"
+    if ! kill -0 "$proxy_pid" 2>/dev/null; then
+        echo "Usque exited before the WARP connection could be verified." >&2
+        exit 1
+    fi
     if trace=$(curl --silent --show-error --fail --max-time 5 --noproxy "" \
         --proxy http://127.0.0.1:40000 https://www.cloudflare.com/cdn-cgi/trace); then
         if [[ "$trace" == *$'warp=on'* || "$trace" == *$'warp=plus'* ]]; then
