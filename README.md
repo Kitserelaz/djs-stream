@@ -34,7 +34,7 @@ Registration is stored at `/var/lib/usque/config.json`; mount `/var/lib/usque` t
 persistent storage to reuse it across container replacements. Treat this file as
 a secret.
 
-The Dockerfile installs Usque automatically and runs a Google connectivity test
+The Dockerfile installs Usque automatically and runs an ipify IP lookup
 after the wrapper verifies WARP:
 
 ```bash
@@ -43,7 +43,8 @@ docker run --rm djs-stream-warp
 ```
 
 The test needs no Discord credentials. It exits with an error if WARP cannot
-connect or Google cannot be reached through its proxy. To supply another command,
+connect or ipify cannot be reached through its proxy. It prints the public IP
+returned by `https://api.ipify.org?format=json`. To supply another command,
 append it to `docker run`, for example `bun run account-username.ts` (with `token`
 provided through the container environment). The image defaults to the one-time
 test, which exits when finished.

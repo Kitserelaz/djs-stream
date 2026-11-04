@@ -1,7 +1,7 @@
-const response = await fetch("https://www.google.com", {
+const response = await fetch("https://api.ipify.org?format=json", {
     proxy: "http://127.0.0.1:40000",
     signal: AbortSignal.timeout(30_000),
 });
-await response.body?.cancel();
-if (!response.ok) throw new Error(`Google request through WARP failed: HTTP ${response.status}`);
-console.log(`Google reached through the WARP proxy: HTTP ${response.status}`);
+if (!response.ok) throw new Error(`IP lookup through WARP failed: HTTP ${response.status}`);
+const result = await response.json() as { ip: string };
+console.log(result.ip);
