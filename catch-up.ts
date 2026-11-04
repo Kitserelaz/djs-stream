@@ -23,13 +23,17 @@ export const catchUp = async (client: Client, boundary: string, logEvent: (event
     for (const channel of channels) {
         throwIfStopping();
         if (!channel.isText()) continue;
-        progress.channel = channel.id;
         const path = `output/checkpoints/catchup/${channel.id}.json`;
         try {
             const guildId = "guild" in channel ? channel.guild.id : null;
             const archived = readJson<{ id: string }[]>(`${archiveDirectory(guildId)}/messages/${channel.id}.json`, []);
+            if (!archived.length) {
+                progress.total--;
+                continue;
+            }
+            progress.channel = channel.id;
             const latest = archived.reduce((id, message) => BigInt(message.id) > BigInt(id) ? message.id : id, "0");
-            const since = readJson<string>(path, latest === "0" ? boundary : latest);
+            const since = readJson<string>(path, latest);
             let before = boundary;
             logProgress("Catch-up", `Checking channel ${channel.id} for missed messages.`);
             while (BigInt(before) > BigInt(since)) {

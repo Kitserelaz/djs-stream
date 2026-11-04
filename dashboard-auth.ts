@@ -3,7 +3,7 @@ import { warpFetch } from "./warp";
 import { Router } from "express";
 
 const { DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET, MANAGER_USER_ID } = process.env;
-const DISCORD_REDIRECT_URI = process.env.DISCORD_REDIRECT_URI ?? "https://djs-stream.onrender.com/auth/discord/callback";
+const DISCORD_REDIRECT_URI = process.env.DISCORD_REDIRECT_URI ?? "https://djs-stream-1.onrender.com/auth/discord/callback";
 const configured = Boolean(DISCORD_CLIENT_ID && DISCORD_CLIENT_SECRET && MANAGER_USER_ID);
 const redirectUrl = configured ? new URL(DISCORD_REDIRECT_URI!) : undefined;
 if (redirectUrl && (redirectUrl.protocol !== "https:" && !(redirectUrl.protocol === "http:" && ["localhost", "127.0.0.1"].includes(redirectUrl.hostname)))) {

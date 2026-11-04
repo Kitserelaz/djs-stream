@@ -55,7 +55,7 @@ returned by `https://api.ipify.org?format=json` and needs no Discord credentials
 For dashboard login, set `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET`, and
 `MANAGER_USER_ID` to the Discord application credentials and the allowed user's ID.
 In the application's Discord OAuth2 settings, register
-`https://djs-stream.onrender.com/auth/discord/callback` as a redirect URL. For
+`https://djs-stream-1.onrender.com/auth/discord/callback` as a redirect URL. For
 local development, set `DISCORD_REDIRECT_URI` to
 `http://localhost:3000/auth/discord/callback` and register that URL too. Dashboard
 sessions expire after 24 hours or when the app restarts.
@@ -70,10 +70,10 @@ records are written under `output/<guild-id>/` (or `output/dms/`), with messages
 stored by channel. Startup metadata collection and message enrichment are disabled.
 Messages use their captured data without fetching users, profiles, invite details,
 or reaction users. Media files are not downloaded.
-At startup, accessible cached text channels are checked for messages missed since
-the previous startup. Existing message archives set the initial boundary for their
-channels; other channels begin tracking at startup. Deleted messages and past edits
-cannot be recovered.
+At startup, accessible cached text channels with at least one saved message are
+checked for messages missed since the previous startup. Existing message archives
+set the initial boundary for their channels. Channels without saved messages are
+skipped. Deleted messages and past edits cannot be recovered.
 
 Unfinished events are saved under `output/checkpoints/events/` and resumed on
 restart. Successful profile and metadata requests are cached in checkpoints;
