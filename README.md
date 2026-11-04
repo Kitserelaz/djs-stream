@@ -14,6 +14,34 @@ bun run index.ts
 
 Set `token` in the environment before running.
 
+To start the WARP daemon and run the username script through its local HTTP proxy:
+
+```bash
+bash with-warp.sh bun run account-username.ts
+```
+
+The Linux container image must already include `cloudflare-warp`, `curl`, Bash,
+and Bun. The wrapper registers WARP when needed, connects in proxy mode, verifies
+the tunnel, and exports HTTP proxy variables before starting the supplied command.
+It stops if WARP cannot connect and forwards shutdown to the command before
+stopping the daemon. Render compatibility still needs verification. Proxy
+variables cover Bun fetch requests; the collector's Discord gateway WebSocket
+requires separate proxy configuration.
+
+The Dockerfile installs WARP automatically and runs a Google connectivity test
+after the wrapper verifies WARP:
+
+```bash
+docker build -t djs-stream-warp .
+docker run --rm djs-stream-warp
+```
+
+The test needs no Discord credentials. It exits with an error if WARP cannot
+connect or Google cannot be reached through its proxy. To supply another command,
+append it to `docker run`, for example `bun run account-username.ts` (with `token`
+provided through the container environment). The image defaults to the one-time
+test, which exits when finished.
+
 For dashboard login, set `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET`, and
 `MANAGER_USER_ID` to the Discord application credentials and the allowed user's ID.
 In the application's Discord OAuth2 settings, register
