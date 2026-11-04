@@ -19,4 +19,4 @@ RUN bun install --frozen-lockfile
 COPY . .
 
 ENTRYPOINT ["bash", "with-warp.sh"]
-CMD ["bun", "run", "test-warp.ts"]
+CMD ["bun", "run", "account-username.ts"]

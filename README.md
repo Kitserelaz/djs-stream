@@ -34,20 +34,18 @@ Registration is stored at `/var/lib/usque/config.json`; mount `/var/lib/usque` t
 persistent storage to reuse it across container replacements. Treat this file as
 a secret.
 
-The Dockerfile installs Usque automatically and runs an ipify IP lookup
-after the wrapper verifies WARP:
+The Dockerfile installs Usque automatically and prints the Discord account's
+username after the wrapper verifies WARP:
 
 ```bash
 docker build -t djs-stream-warp .
-docker run --rm djs-stream-warp
+docker run --rm --env-file .env djs-stream-warp
 ```
 
-The test needs no Discord credentials. It exits with an error if WARP cannot
-connect or ipify cannot be reached through its proxy. It prints the public IP
-returned by `https://api.ipify.org?format=json`. To supply another command,
-append it to `docker run`, for example `bun run account-username.ts` (with `token`
-provided through the container environment). The image defaults to the one-time
-test, which exits when finished.
+Set `token` in `.env`. The default command exits after printing the username.
+To run the ipify test instead, use
+`docker run --rm djs-stream-warp bun run test-warp.ts`; it prints the public IP
+returned by `https://api.ipify.org?format=json` and needs no Discord credentials.
 
 For dashboard login, set `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET`, and
 `MANAGER_USER_ID` to the Discord application credentials and the allowed user's ID.
