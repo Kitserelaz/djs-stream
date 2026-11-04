@@ -11,7 +11,11 @@ type SavedEvent = { message?: { id?: string }; oldMessage?: { id?: string }; new
 export const catchUp = async (client: Client, boundary: string, logEvent: (event: "messageCreate", message: Message | PartialMessage) => Promise<boolean>) => {
     const progress = dashboardState.catchUp;
     progress.status = "Running";
-    const channels = [...client.channels.cache.values()].filter(channel => channel.isText());
+    const channels = [...client.channels.cache.values()].filter(channel => {
+        if (!channel.isText()) return false;
+        if (!("guild" in channel)) return true;
+        return channel.permissionsFor(client.user!)?.has(["VIEW_CHANNEL", "READ_MESSAGE_HISTORY"]) === true;
+    });
     progress.total = channels.length;
     const seen = new Set<string>();
     for (const event of readJson<SavedEvent[]>("logs.json", [])) {
