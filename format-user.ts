@@ -1,4 +1,5 @@
 import type { User } from "discord.js-selfbot-v13";
+import { warpFetch } from "./warp";
 import { collectInvites } from "./references";
 import { attempt, request, withTimeout } from "./requests";
 import { checkpoint, readJson, recordFailure, safeJson, saveRecord } from "./storage";
@@ -27,7 +28,7 @@ export const fetchProfile = async (user: User, guildId?: string) => checkpoint(`
         });
         if (guildId)
             query.set("guild_id", guildId);
-        const response = await fetch(`https://discord.com/api/v9/users/${user.id}/profile?${query}`, {
+        const response = await warpFetch(`https://discord.com/api/v9/users/${user.id}/profile?${query}`, {
             headers: { Authorization: user.client.token! },
             signal: AbortSignal.any([shutdownSignal, AbortSignal.timeout(45000)]),
         });

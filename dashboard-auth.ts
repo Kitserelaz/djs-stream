@@ -1,4 +1,5 @@
 import { randomBytes } from "node:crypto";
+import { warpFetch } from "./warp";
 import { Router } from "express";
 
 const { DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET, MANAGER_USER_ID } = process.env;
@@ -51,7 +52,7 @@ dashboardAuth.get("/auth/discord/callback", async (request, response) => {
         return;
     }
     try {
-        const exchange = await fetch("https://discord.com/api/v10/oauth2/token", {
+        const exchange = await warpFetch("https://discord.com/api/v10/oauth2/token", {
             method: "POST",
             headers: { "Content-Type": "application/x-www-form-urlencoded" },
             body: new URLSearchParams({ client_id: DISCORD_CLIENT_ID!, client_secret: DISCORD_CLIENT_SECRET!, grant_type: "authorization_code", code, redirect_uri: DISCORD_REDIRECT_URI! }),
@@ -59,7 +60,7 @@ dashboardAuth.get("/auth/discord/callback", async (request, response) => {
         });
         if (!exchange.ok) throw new Error(`Discord token exchange failed: HTTP ${exchange.status}`);
         const { access_token } = await exchange.json() as { access_token: string };
-        const profile = await fetch("https://discord.com/api/v10/users/@me", {
+        const profile = await warpFetch("https://discord.com/api/v10/users/@me", {
             headers: { Authorization: `Bearer ${access_token}` },
             signal: AbortSignal.timeout(15_000),
         });

@@ -1,4 +1,4 @@
-import { Client } from "discord.js-selfbot-v13";
+import { createDiscordClient } from "./discord-client";
 import express from "express";
 import { fileURLToPath } from "node:url";
 import { dashboard } from "./dashboard";
@@ -6,13 +6,12 @@ import { dashboardAuth } from "./dashboard-auth";
 import { catchUp } from "./catch-up";
 import { dashboardState } from "./dashboard-state";
 import { createEventLogger } from "./log-event";
-import { exportMetadata } from "./metadata";
 import { recordFailure } from "./storage";
 import { startWebDav, waitForUploads } from "./webdav";
 import { beginShutdown, cancelDiscordRequestsOnShutdown, shutdownSignal, throwIfStopping } from "./shutdown";
 import { logProgress } from "./logging";
 
-const client = new Client();
+const client = createDiscordClient();
 const app = express();
 app.get("/dashboard.css", (_request, response) => response.sendFile(fileURLToPath(new URL("./dashboard.css", import.meta.url))));
 app.use(dashboardAuth);
@@ -67,7 +66,7 @@ await trackTask(async () => {
     dashboardState.startup = "Connecting to Discord";
     logProgress("Startup", "WebDAV recovery finished.");
     throwIfStopping();
-    const { logEvent, logMemberEvent, resume } = createEventLogger(client);
+    const { logEvent, logMemberEvent, resume } = createEventLogger();
 
     client.on("messageCreate", async (message) => {
         await trackTask(async () => { await logEvent("messageCreate", message); });
@@ -90,22 +89,19 @@ await trackTask(async () => {
     });
 
     client.once("ready", async () => {
-        dashboardState.startup = "Collecting startup data";
+        dashboardState.startup = "Catching up messages";
         const boundary = ((BigInt(Date.now()) - 1420070400000n) << 22n).toString();
         logProgress("Discord", `Connected as user ${client.user!.id}; ${client.guilds.cache.size} servers available.`);
-        await Promise.all([
-            trackTask(async () => {
-                await resume();
-                try {
-                    await catchUp(client, boundary, logEvent);
-                } catch (error) {
-                    dashboardState.catchUp.status = shutdownSignal.aborted ? "Interrupted" : "Failed";
-                    dashboardState.catchUp.channel = "";
-                    throw error;
-                }
-            }),
-            trackTask(async () => exportMetadata(client)),
-        ]);
+        await trackTask(async () => {
+            await resume();
+            try {
+                await catchUp(client, boundary, logEvent);
+            } catch (error) {
+                dashboardState.catchUp.status = shutdownSignal.aborted ? "Interrupted" : "Failed";
+                dashboardState.catchUp.channel = "";
+                throw error;
+            }
+        });
         if (!shutdownSignal.aborted) {
             dashboardState.startup = dashboardState.catchUp.status === "Complete" ? "Ready" : "Finished with errors";
             logProgress("Startup", "Initial collection finished; listening for message and member events.");

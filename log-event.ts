@@ -1,7 +1,6 @@
 import { mkdirSync, readdirSync, unlinkSync } from "node:fs";
-import type { Client, GuildMember, PartialGuildMember, Message, PartialMessage } from "discord.js-selfbot-v13";
+import type { GuildMember, PartialGuildMember, Message, PartialMessage } from "discord.js-selfbot-v13";
 import { captureMessage, type CapturedMessage } from "./format-message";
-import { enrichMessage } from "./enrich-message";
 import { archiveDirectory, readJson, recordFailure, writeJson } from "./storage";
 import { deleteRemoteCheckpoint, flushUploads } from "./webdav";
 import { setTimeout as delay } from "node:timers/promises";
@@ -30,7 +29,7 @@ type SavedEvent = PendingMemberEvent | {
     oldMessage?: CapturedMessage["value"];
     newMessage?: CapturedMessage["value"];
 };
-export const createEventLogger = (client: Client) => {
+export const createEventLogger = () => {
     const pendingDirectory = "output/checkpoints/events";
     mkdirSync(pendingDirectory, { recursive: true });
     const waiting = readdirSync(pendingDirectory).filter(name => name.endsWith(".json")).sort();
@@ -51,9 +50,7 @@ export const createEventLogger = (client: Client) => {
                     const pending = readJson<PendingEvent>(`${pendingDirectory}/${filename}`, undefined!);
                     let event: SavedEvent;
                     if ("messages" in pending) {
-                        const messages = [];
-                        for (const captured of pending.messages)
-                            messages.push(await enrichMessage(client, captured));
+                        const messages = pending.messages.map(captured => captured.value);
                         throwIfStopping();
                         event = pending.event === "messageUpdate"
                             ? { id: pending.id, event: pending.event, oldMessage: messages[0], newMessage: messages[1] }

@@ -1,7 +1,7 @@
 FROM debian:bookworm-slim
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends bash ca-certificates curl unzip \
+    && apt-get install -y --no-install-recommends bash ca-certificates curl unzip util-linux \
     && mkdir /tmp/usque \
     && cd /tmp/usque \
     && curl -fSL "https://github.com/Diniboy1123/usque/releases/download/v4.2.1/usque_4.2.1_linux_$(dpkg --print-architecture).zip" -O \

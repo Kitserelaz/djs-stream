@@ -6,10 +6,10 @@ To install dependencies:
 bun install
 ```
 
-To run:
+To run the collector with WARP (inside the Docker image):
 
 ```bash
-bun run index.ts
+bash with-warp.sh bun run index.ts
 ```
 
 Set `token` in the environment before running.
@@ -24,11 +24,14 @@ The Docker image installs [Usque v4.2.1](https://github.com/Diniboy1123/usque/re
 an unofficial userspace WARP implementation, plus `curl`, Bash, and Bun. The wrapper
 registers when needed, starts Usque's L4 HTTP proxy on `127.0.0.1:40000`, verifies
 the tunnel, and exports HTTP proxy variables before starting the supplied command.
-It stops if WARP cannot connect and forwards shutdown to the command before
-stopping the proxy. This mode requires outbound UDP for QUIC but no `NET_ADMIN`
-or TUN device. Render compatibility still needs verification. Proxy
-variables cover Bun fetch requests; the collector's Discord gateway WebSocket
-requires separate proxy configuration.
+It stops if WARP cannot connect and forwards normal shutdown to the command before
+stopping the proxy. After startup, it checks the tunnel every five seconds with a
+five-second request timeout. If the proxy exits or verification fails, it force
+terminates the command and its process group, which can interrupt pending writes.
+Discord REST requests, gateway connections, OAuth, profile lookups, and WebDAV
+requests explicitly require the local proxy and do not retry directly. This is
+application-level protection, not a host firewall. This mode requires outbound UDP
+for QUIC but no `NET_ADMIN` or TUN device. Render compatibility still needs verification.
 
 Registration is stored at `/var/lib/usque/config.json`; mount `/var/lib/usque` to
 persistent storage to reuse it across container replacements. Treat this file as
@@ -61,15 +64,14 @@ the server's `members.json`. New member joins and updates are also recorded by
 member in `output/<guild-id>/member-history/<member-id>.json`, with the capture
 time and snapshots. This history starts when the feature is enabled; changes made
 while the app is offline cannot be reconstructed. Archival-style
-records are written under `output/<guild-id>/` (or `output/dms/`): messages by
-channel, authors, mentioned users, all users, external invites, and server metadata.
-Server metadata includes channels, threads, members, roles, emojis, stickers, and
-templates, collected on startup. Message history and media files are not fetched.
+records are written under `output/<guild-id>/` (or `output/dms/`), with messages
+stored by channel. Startup metadata collection and message enrichment are disabled.
+Messages use their captured data without fetching users, profiles, invite details,
+or reaction users. Media files are not downloaded.
 At startup, accessible cached text channels are checked for messages missed since
 the previous startup. Existing message archives set the initial boundary for their
 channels; other channels begin tracking at startup. Deleted messages and past edits
-cannot be recovered. Profiles are fetched only when processing message events; startup metadata uses
-the user information already available without requesting profiles.
+cannot be recovered.
 
 Unfinished events are saved under `output/checkpoints/events/` and resumed on
 restart. Successful profile and metadata requests are cached in checkpoints;

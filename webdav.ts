@@ -6,6 +6,7 @@ import { restoreArchive } from "./webdav-recovery";
 import { shutdownSignal, throwIfStopping } from "./shutdown";
 import { logProgress } from "./logging";
 import { dashboardState } from "./dashboard-state";
+import { warpFetch } from "./warp";
 
 const pending = new Set<string>();
 const queuedAt = new Map<string, number>();
@@ -27,7 +28,7 @@ export const webDavRequest = async (path: string, method: string, body?: string 
     const uploading = method === "PUT" || method === "MKCOL";
     if (!uploading) throwIfStopping();
     const url = new URL(path.split("/").map(encodeURIComponent).join("/"), baseUrl);
-    return await fetch(url, {
+    return await warpFetch(url, {
         method,
         headers: { Authorization: authorization, ...headers },
         body,
